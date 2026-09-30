@@ -24,7 +24,8 @@ const defaultConfig = {
     OPENCODE_SERVER_URL: 'http://127.0.0.1:4097',
     OPENCODE_PATH: 'opencode',
     BIND_HOST: '127.0.0.1',
-    DISABLE_TOOLS: false
+    DISABLE_TOOLS: true,
+    USE_ISOLATED_HOME: true
 };
 
 // Load config from file
@@ -48,7 +49,8 @@ const finalConfig = {
     OPENCODE_SERVER_URL: process.env.OPENCODE_SERVER_URL || fileConfig.OPENCODE_SERVER_URL || defaultConfig.OPENCODE_SERVER_URL,
     OPENCODE_PATH: process.env.OPENCODE_PATH || fileConfig.OPENCODE_PATH || defaultConfig.OPENCODE_PATH,
     BIND_HOST: process.env.BIND_HOST || fileConfig.BIND_HOST || defaultConfig.BIND_HOST,
-    DISABLE_TOOLS: parseBool(process.env.OPENCODE_DISABLE_TOOLS, parseBool(fileConfig.DISABLE_TOOLS, defaultConfig.DISABLE_TOOLS))
+    DISABLE_TOOLS: parseBool(process.env.OPENCODE_DISABLE_TOOLS, parseBool(fileConfig.DISABLE_TOOLS, defaultConfig.DISABLE_TOOLS)),
+    USE_ISOLATED_HOME: parseBool(process.env.OPENCODE_USE_ISOLATED_HOME, parseBool(fileConfig.USE_ISOLATED_HOME, defaultConfig.USE_ISOLATED_HOME))
 };
 
 // Validate required configuration
@@ -77,6 +79,7 @@ console.log(`  - Backend: ${finalConfig.OPENCODE_SERVER_URL}`);
 console.log(`  - OpenCode Path: ${finalConfig.OPENCODE_PATH}`);
 console.log(`  - API Key: ${finalConfig.API_KEY ? 'Configured' : 'Not configured (no auth)'}`);
 console.log(`  - Disable Tools: ${finalConfig.DISABLE_TOOLS ? 'Yes' : 'No'}`);
+console.log(`  - Isolated HOME: ${finalConfig.USE_ISOLATED_HOME ? 'Yes' : 'No'}`);
 
 // Start the proxy
 try {

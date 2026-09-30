@@ -2,7 +2,8 @@
     "PORT": 8083,
     "API_KEY": "your-secret-api-key",
     "BIND_HOST": "127.0.0.1",
-    "DISABLE_TOOLS": false,
+    "DISABLE_TOOLS": true,
+    "USE_ISOLATED_HOME": true,
     "OPENCODE_SERVER_URL": "http://127.0.0.1:4097",
     "OPENCODE_PATH": "opencode"
 }

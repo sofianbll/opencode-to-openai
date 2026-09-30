@@ -5,10 +5,13 @@
   "main": "index.js",
   "type": "module",
   "openclaw": {
-    "extensions": ["./src/plugin.js"]
+    "extensions": [
+      "./src/plugin.js"
+    ]
   },
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node --test"
   },
   "keywords": [
     "opencode",
@@ -26,9 +29,9 @@
     "node": ">=14.0.0"
   },
   "dependencies": {
-    "@opencode-ai/sdk": "^1.1.51",
-    "axios": "^1.13.4",
-    "body-parser": "^2.2.2",
+    "@opencode-ai/sdk": "^1.17.13",
+    "axios": "^1.18.1",
+    "body-parser": "^2.3.0",
     "cors": "^2.8.6",
     "express": "^5.2.1"
   }

@@ -10,15 +10,15 @@ const DEFAULTS = {
     backendUrl: 'http://127.0.0.1:4097',
     opencodePath: 'opencode',
     bindHost: '127.0.0.1',
-    useIsolatedHome: false,
-    disableTools: false,
+    useIsolatedHome: true,
+    disableTools: true,
     debug: false,
     writeAllowlist: true,
     setDefaultOnLogin: false,
     defaultModel: ''
 };
 
-function normalizeConfig(raw = {}) {
+export function normalizeConfig(raw = {}) {
     const merged = { ...DEFAULTS, ...raw };
     merged.port = Number.parseInt(merged.port, 10) || DEFAULTS.port;
     merged.apiKey = merged.apiKey || '';

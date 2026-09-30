@@ -25,6 +25,72 @@ const DEFAULT_EVENT_FIRST_DELTA_TIMEOUT_MS = 4000;
 const DEFAULT_EVENT_IDLE_TIMEOUT_MS = 8000;
 
 const OPENCODE_BASENAME = 'opencode';
+const SECRET_ENV_PATTERN = /(^|_)(api_?key|token|secret|password|passwd|credential|private|session|cookie|auth)(_|$)/i;
+
+function normalizeBool(value) {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value === 1;
+    if (typeof value === 'string') {
+        const v = value.trim().toLowerCase();
+        if (['1', 'true', 'yes', 'y', 'on'].includes(v)) return true;
+        if (['0', 'false', 'no', 'n', 'off'].includes(v)) return false;
+    }
+    return undefined;
+}
+
+function isLocalBindHost(host) {
+    const normalized = String(host || '').trim().toLowerCase();
+    return ['', '127.0.0.1', 'localhost', '::1', '[::1]'].includes(normalized);
+}
+
+export function validateProxyConfig(config) {
+    if (!isLocalBindHost(config.BIND_HOST) && !String(config.API_KEY || '').trim()) {
+        throw new Error('API_KEY is required when BIND_HOST is not a local-only address.');
+    }
+    return config;
+}
+
+export function normalizeStartProxyOptions(options = {}) {
+    const disableTools =
+        normalizeBool(options.DISABLE_TOOLS) ??
+        normalizeBool(options.disableTools) ??
+        normalizeBool(process.env.OPENCODE_DISABLE_TOOLS) ??
+        true;
+
+    const useIsolatedHome =
+        normalizeBool(options.USE_ISOLATED_HOME) ??
+        normalizeBool(options.useIsolatedHome) ??
+        normalizeBool(process.env.OPENCODE_USE_ISOLATED_HOME) ??
+        true;
+
+    return validateProxyConfig({
+        PORT: options.PORT || 8083,
+        API_KEY: options.API_KEY || '',
+        OPENCODE_SERVER_URL: options.OPENCODE_SERVER_URL || 'http://127.0.0.1:4097',
+        OPENCODE_PATH: options.OPENCODE_PATH || 'opencode',
+        BIND_HOST: options.BIND_HOST || options.bindHost || process.env.OPENCODE_PROXY_BIND_HOST || '127.0.0.1',
+        USE_ISOLATED_HOME: useIsolatedHome,
+        REQUEST_TIMEOUT_MS: Number(options.REQUEST_TIMEOUT_MS || process.env.OPENCODE_PROXY_REQUEST_TIMEOUT_MS || DEFAULT_REQUEST_TIMEOUT_MS),
+        DISABLE_TOOLS: disableTools,
+        DEBUG: normalizeBool(options.DEBUG) ?? normalizeBool(process.env.OPENCODE_PROXY_DEBUG) ?? false
+    });
+}
+
+export function buildBackendEnv({ sourceEnv = process.env, home, workspace } = {}) {
+    const env = {};
+    Object.entries(sourceEnv).forEach(([key, value]) => {
+        if (SECRET_ENV_PATTERN.test(key)) return;
+        env[key] = value;
+    });
+    if (home) {
+        env.HOME = home;
+        env.USERPROFILE = home;
+    }
+    if (workspace) {
+        env.OPENCODE_PROJECT_DIR = workspace;
+    }
+    return env;
+}
 
 function splitPathEnv() {
     const raw = process.env.PATH || '';
@@ -924,10 +990,7 @@ async function ensureBackend(config) {
             // Windows: use normal user home to avoid opencode storage path issues
             fs.mkdirSync(workspace, { recursive: true });
             cwd = workspace;
-            envVars = {
-                ...process.env,
-                OPENCODE_PROJECT_DIR: workspace
-            };
+            envVars = buildBackendEnv({ workspace });
             console.log('[Proxy] Running on Windows, using standard user home directory');
         } else {
             fs.mkdirSync(workspace, { recursive: true });
@@ -947,18 +1010,10 @@ async function ensureBackend(config) {
                     if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
                 });
 
-                envVars = {
-                    ...process.env,
-                    HOME: fakeHome,
-                    USERPROFILE: fakeHome,
-                    OPENCODE_PROJECT_DIR: workspace
-                };
+                envVars = buildBackendEnv({ home: fakeHome, workspace });
                 console.log('[Proxy] Using isolated home for OpenCode');
             } else {
-                envVars = {
-                    ...process.env,
-                    OPENCODE_PROJECT_DIR: workspace
-                };
+                envVars = buildBackendEnv({ workspace });
                 console.log('[Proxy] Using real HOME for OpenCode (isolation disabled)');
             }
         }
@@ -1019,42 +1074,7 @@ async function ensureBackend(config) {
  * Starts the OpenCode-to-OpenAI Proxy server.
  */
 export function startProxy(options) {
-    const normalizeBool = (value) => {
-        if (typeof value === 'boolean') return value;
-        if (typeof value === 'number') return value === 1;
-        if (typeof value === 'string') {
-            const v = value.trim().toLowerCase();
-            if (['1', 'true', 'yes', 'y', 'on'].includes(v)) return true;
-            if (['0', 'false', 'no', 'n', 'off'].includes(v)) return false;
-        }
-        return undefined;
-    };
-
-    const disableTools =
-        normalizeBool(options.DISABLE_TOOLS) ??
-        normalizeBool(options.disableTools) ??
-        normalizeBool(process.env.OPENCODE_DISABLE_TOOLS) ??
-        false;
-
-    const config = {
-        PORT: options.PORT || 8083,
-        API_KEY: options.API_KEY || '',
-        OPENCODE_SERVER_URL: options.OPENCODE_SERVER_URL || 'http://127.0.0.1:4097',
-        OPENCODE_PATH: options.OPENCODE_PATH || 'opencode',
-        BIND_HOST: options.BIND_HOST || options.bindHost || process.env.OPENCODE_PROXY_BIND_HOST || '127.0.0.1',
-        USE_ISOLATED_HOME: typeof options.USE_ISOLATED_HOME === 'boolean'
-            ? options.USE_ISOLATED_HOME
-            : String(options.USE_ISOLATED_HOME || '').toLowerCase() === 'true' ||
-            options.USE_ISOLATED_HOME === '1' ||
-            String(process.env.OPENCODE_USE_ISOLATED_HOME || '').toLowerCase() === 'true' ||
-            process.env.OPENCODE_USE_ISOLATED_HOME === '1',
-        REQUEST_TIMEOUT_MS: Number(options.REQUEST_TIMEOUT_MS || process.env.OPENCODE_PROXY_REQUEST_TIMEOUT_MS || DEFAULT_REQUEST_TIMEOUT_MS),
-        DISABLE_TOOLS: disableTools,
-        DEBUG: String(options.DEBUG || '').toLowerCase() === 'true' ||
-            options.DEBUG === '1' ||
-            String(process.env.OPENCODE_PROXY_DEBUG || '').toLowerCase() === 'true' ||
-            process.env.OPENCODE_PROXY_DEBUG === '1'
-    };
+    const config = normalizeStartProxyOptions(options);
 
     const { app } = createApp(config);
     
